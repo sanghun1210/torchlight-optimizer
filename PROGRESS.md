@@ -21,15 +21,23 @@
      - ✅ **설명(Description) 추출 수정** - HTML 구조 분석 후 올바른 파싱 로직 구현
    - **결과**: 모든 스킬 정보가 정상적으로 추출됨 (샘플 3개 테스트 완료)
 
-3. **영웅 크롤러**
-   - **파일**: `backend/crawler/heroes_crawler.py`
-   - 24개 영웅 재능 수집 (11개 고유 영웅)
-   - ⚠️ 개선 필요: `god_type`, `description` 필드 비어있음
+3. **영웅 크롤러 v2 개선 완료** ⭐
+   - **파일**: `backend/crawler/heroes_crawler_v2.py`
+   - **개선 내용**:
+     - ✅ 개별 영웅/재능 페이지 방문
+     - ✅ `god_type` 추출 (Berserker, Divineshot 등)
+     - ✅ 영웅 이름 추출 (Rehan, Carino 등)
+     - ✅ `description` 추출 및 정리 ("God|Name" 접두사 제거)
+   - **결과**: 모든 영웅 정보가 정상적으로 추출됨 (샘플 3개 테스트 완료)
 
-4. **레전더리 아이템 크롤러**
-   - **파일**: `backend/crawler/legendary_items_crawler.py`
-   - 316개 레전더리 아이템 수집
-   - ⚠️ 개선 필요: `special_effects`, `required_level` 필드 비어있음
+4. **레전더리 아이템 크롤러 v2 개선 완료** ⭐
+   - **파일**: `backend/crawler/legendary_items_crawler_v2.py`
+   - **개선 내용**:
+     - ✅ 조부모 div 구조 분석 (`flex-grow-1` div에서 정보 추출)
+     - ✅ `required_level` 추출 (Require lv X 패턴)
+     - ✅ `special_effects` 추출 (모든 스탯/효과 라인)
+     - ✅ 아이템 타입 및 슬롯 자동 식별
+   - **결과**: 모든 아이템 정보가 정상적으로 추출됨 (샘플 5개 테스트 완료)
 
 #### 🔧 주요 버그 수정
 1. **URL 생성 버그 수정** (`base_crawler.py:93`)

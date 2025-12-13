@@ -146,6 +146,56 @@ class ItemSet(Base):
         return f"<ItemSet(id={self.id}, name='{self.set_name}', pieces={self.pieces_required})>"
 
 
+class TalentNode(Base):
+    """재능 노드(Talent_Nodes) 테이블"""
+    __tablename__ = "talent_nodes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    node_type = Column(String(20), nullable=False)  # Core, Regular
+    god_class = Column(String(50))  # New God, God of Might, etc.
+    tier = Column(String(20))  # Micro, Medium, Large (for regular nodes)
+    effect = Column(Text)  # 효과 설명
+    image_url = Column(String(500))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<TalentNode(id={self.id}, name='{self.name}', type='{self.node_type}')>"
+
+
+class TalentLevel(Base):
+    """재능 레벨 효과(Talent_Levels) 테이블"""
+    __tablename__ = "talent_levels"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    talent_name = Column(String(100), nullable=False)  # "Anger", "Seething Silhouette" 등
+    level = Column(Integer, nullable=False)  # 1, 45, 60, 75 등
+    effect_name = Column(String(100), nullable=False)  # "Tunnel Vision", "Rampaging" 등
+    effect_description = Column(Text)  # 효과 상세 설명
+    mechanics = Column(Text)  # JSON: 핵심 메커니즘 키워드
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<TalentLevel(talent='{self.talent_name}', level={self.level}, effect='{self.effect_name}')>"
+
+
+class Destiny(Base):
+    """운명(Destiny/Fate) 테이블"""
+    __tablename__ = "destinies"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    tier = Column(String(20))  # Micro, Medium, Large
+    category = Column(String(50))  # Fire Resistance, Attack Damage, etc.
+    effect = Column(Text)  # 효과 설명
+    stat_range = Column(String(50))  # (5-7), (14-18), etc.
+    image_url = Column(String(500))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Destiny(id={self.id}, name='{self.name}', tier='{self.tier}')>"
+
+
 class MetaBuild(Base):
     """메타 빌드(Meta_Builds) 테이블"""
     __tablename__ = "meta_builds"
