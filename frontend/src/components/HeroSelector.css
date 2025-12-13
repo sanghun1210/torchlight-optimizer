@@ -1,0 +1,97 @@
+.hero-selector {
+  margin-bottom: 2rem;
+}
+
+.hero-selector h2 {
+  margin-bottom: 1.5rem;
+  color: #fff;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.hero-card {
+  background-color: #242424;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hero-card:hover {
+  border-color: #646cff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(100, 108, 255, 0.3);
+}
+
+.hero-card.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+}
+
+.hero-image {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  background-color: #1a1a1a;
+}
+
+.hero-info {
+  flex: 1;
+}
+
+.hero-info h3 {
+  margin: 0 0 0.5rem 0;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.hero-talent {
+  margin: 0.25rem 0;
+  color: #a8a8ff;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.hero-god-type {
+  margin: 0.25rem 0;
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.recommend-section {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.recommend-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.recommend-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.recommend-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
