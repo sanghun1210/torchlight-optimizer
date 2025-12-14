@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from backend.database.models import Hero, Skill, Item, TalentLevel, TalentNode
+from backend.recommendation.mechanics_analyzer import MechanicsAnalyzer
 
 
 class ContextBuilder:
@@ -14,6 +15,7 @@ class ContextBuilder:
 
     def __init__(self, db: Session):
         self.db = db
+        self.mechanics_analyzer = MechanicsAnalyzer()
 
     def build_hero_context(
         self,
@@ -89,7 +91,7 @@ class ContextBuilder:
         playstyle: Optional[str],
         max_skills: int
     ) -> List[Dict]:
-        """관련 스킬 조회 및 필터링"""
+        """관련 스킬 조회 및 필터링 (메커니즘 분석 포함)"""
         # 모든 스킬 조회 (실제로는 필터링 최적화 가능)
         skills = self.db.query(Skill).limit(max_skills).all()
 
@@ -103,15 +105,33 @@ class ContextBuilder:
                 except json.JSONDecodeError:
                     tags = []
 
-            skill_data = {
+            skill_dict = {
                 "id": skill.id,
                 "name": skill.name,
                 "type": skill.type,
-                "description": skill.description[:200] if skill.description else "",  # 토큰 절약
+                "description": skill.description,
                 "tags": tags,
                 "damage_type": skill.damage_type,
                 "cooldown": skill.cooldown,
                 "mana_cost": skill.mana_cost
+            }
+
+            # 메커니즘 분석 수행
+            mechanics_analysis = self.mechanics_analyzer.analyze_skill_mechanics(skill_dict)
+
+            skill_data = {
+                "id": skill.id,
+                "name": skill.name,
+                "type": skill.type,
+                "description": skill.description if skill.description else "",  # 전체 설명 사용
+                "tags": tags,
+                "damage_type": skill.damage_type,
+                "cooldown": skill.cooldown,
+                "mana_cost": skill.mana_cost,
+                # 메커니즘 분석 결과 추가
+                "build_style": mechanics_analysis["build_style"],
+                "ailment": mechanics_analysis["ailment"],
+                "mechanics": list(mechanics_analysis["mechanics"])
             }
 
             # 플레이스타일 필터링 (선택사항)
@@ -142,8 +162,8 @@ class ContextBuilder:
                 try:
                     special_effects = json.loads(item.special_effects)
                 except json.JSONDecodeError:
-                    # JSON이 아니면 문자열 그대로
-                    special_effects = [item.special_effects[:100]]  # 토큰 절약
+                    # JSON이 아니면 문자열 그대로 (전체 사용)
+                    special_effects = [item.special_effects]
 
             item_list.append({
                 "id": item.id,
@@ -208,10 +228,22 @@ class ContextBuilder:
         # 3. 사용 가능한 스킬
         prompt_parts.append(f"# AVAILABLE SKILLS (Total: {len(skills)})")
         for skill in skills[:30]:  # 최대 30개만 포함
-            prompt_parts.append(f"- {skill['name']} ({skill['type']})")
+            prompt_parts.append(f"- {skill['name']} (ID: {skill['id']}, {skill['type']})")
             prompt_parts.append(f"  Damage: {skill['damage_type']}, Tags: {', '.join(skill['tags'][:5])}")
+
+            # 메커니즘 분석 결과 표시
+            if skill.get('build_style') and skill['build_style'] != 'Unknown':
+                mechanics_info = f"  Build Style: {skill['build_style']}"
+                if skill.get('ailment'):
+                    mechanics_info += f" → {skill['ailment']}"
+                prompt_parts.append(mechanics_info)
+
+            if skill.get('mechanics'):
+                prompt_parts.append(f"  Mechanics: {', '.join(skill['mechanics'])}")
+
             if skill.get('description'):
                 prompt_parts.append(f"  Description: {skill['description']}")
+
             if skill.get('playstyle_match'):
                 prompt_parts.append(f"  ⭐ MATCHES USER PLAYSTYLE")
         prompt_parts.append("")
@@ -219,13 +251,15 @@ class ContextBuilder:
         # 4. 사용 가능한 아이템
         prompt_parts.append(f"# AVAILABLE ITEMS (Total: {len(items)})")
         for item in items[:20]:  # 최대 20개만 포함
-            prompt_parts.append(f"- {item['name']} ({item['slot']}, {item['rarity']})")
+            prompt_parts.append(f"- {item['name']} (ID: {item['id']}, {item['slot']}, {item['rarity']})")
             prompt_parts.append(f"  Stat: {item['stat_type']}, Type: {item['type']}")
             if item.get('set_name'):
                 prompt_parts.append(f"  Set: {item['set_name']}")
             if item.get('special_effects') and len(item['special_effects']) > 0:
-                effects_str = str(item['special_effects'][0])[:100]  # 첫 효과만
-                prompt_parts.append(f"  Effect: {effects_str}")
+                # 모든 효과를 포함
+                for i, effect in enumerate(item['special_effects'][:5], 1):  # 최대 5개 효과
+                    effect_str = str(effect)
+                    prompt_parts.append(f"  Effect {i}: {effect_str}")
         prompt_parts.append("")
 
         # 5. 사용자 선호도
@@ -235,3 +269,48 @@ class ContextBuilder:
             prompt_parts.append("")
 
         return "\n".join(prompt_parts)
+
+    def get_build_suggestions(self, context: Dict) -> Dict:
+        """
+        컨텍스트 기반 빌드 제안 생성 (메커니즘 분석 활용)
+
+        Args:
+            context: build_hero_context()의 반환값
+
+        Returns:
+            빌드 제안 딕셔너리
+        """
+        skills = context["available_skills"]
+
+        # 스킬들의 메커니즘 분석 결과 수집
+        skill_analyses = []
+        for skill in skills:
+            if skill.get("build_style") and skill["build_style"] != "Unknown":
+                skill_analyses.append({
+                    "build_style": skill["build_style"],
+                    "damage_type": skill.get("damage_type"),
+                    "ailment": skill.get("ailment"),
+                    "mechanics": skill.get("mechanics", [])
+                })
+
+        # 빌드 타입 결정
+        build_type = self.mechanics_analyzer.get_build_type_from_skills(skill_analyses)
+
+        # 주요 데미지 타입 결정
+        damage_types = [s.get("damage_type") for s in skill_analyses if s.get("damage_type")]
+        dominant_damage = max(set(damage_types), key=damage_types.count) if damage_types else None
+
+        # 플레이 팁 생성
+        playstyle_tips = self.mechanics_analyzer.get_playstyle_tips(build_type, dominant_damage)
+
+        # 추천 스탯 생성 (첫 번째 스킬 기준)
+        recommended_stats = []
+        if skill_analyses:
+            recommended_stats = self.mechanics_analyzer.get_recommended_stats(skill_analyses[0])
+
+        return {
+            "build_type": build_type,
+            "dominant_damage": dominant_damage,
+            "recommended_stats": recommended_stats,
+            "playstyle_tips": playstyle_tips
+        }

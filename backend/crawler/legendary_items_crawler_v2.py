@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class LegendaryItemsCrawlerV2(BaseCrawler):
     """레전드 아이템 데이터 크롤링 v2"""
 
-    LEGENDARY_GEAR_URL = "https://tlidb.com/en/Legendary_Gear"
+    LEGENDARY_GEAR_URL = "https://tlidb.com/ko/Legendary_Gear"
 
     # 이미지 경로 패턴으로 아이템 타입 식별
     ITEM_TYPE_PATTERNS = {
@@ -121,19 +121,19 @@ class LegendaryItemsCrawlerV2(BaseCrawler):
             special_effects = []
 
             for line in lines[1:]:
-                # "Require lv X" 패턴
-                if 'Require lv' in line:
-                    level_match = re.search(r'Require lv\s+(\d+)', line)
-                    if level_match:
+                # "Require lv X" 또는 "요구 레벨 X" 또는 "Lv X" 패턴
+                if any(keyword in line.lower() for keyword in ['require lv', '요구 레벨', 'lv', '레벨']):
+                    level_match = re.search(r'(\d+)', line)
+                    if level_match and not required_level:  # 첫 번째 숫자만
                         required_level = int(level_match.group(1))
-                # 특수 효과 (숫자가 포함된 라인)
-                elif any(char in line for char in ['+', '-', '%']) or len(line) > 5:
+                # 특수 효과 (모든 옵션 텍스트 수집)
+                elif any(char in line for char in ['+', '-', '%', '증가', '감소', '추가']) or len(line) > 5:
                     # 너무 짧은 라인 제외
                     if len(line) > 3:
                         special_effects.append(line)
 
-            # 설명: 처음 2개 효과를 합침
-            description = ' | '.join(special_effects[:2]) if special_effects else ''
+            # 설명: 모든 효과를 합침
+            description = ' | '.join(special_effects[:5]) if special_effects else ''
 
             return {
                 'name': item_name,
@@ -142,7 +142,7 @@ class LegendaryItemsCrawlerV2(BaseCrawler):
                 'rarity': 'Legendary',
                 'stat_type': None,  # 레전드 아이템은 범용
                 'base_stats': json.dumps({}),
-                'special_effects': json.dumps(special_effects[:10]),  # 최대 10개 효과
+                'special_effects': json.dumps(special_effects),  # 모든 효과 포함
                 'set_name': None,
                 'image_url': image_url,
                 'required_level': required_level,

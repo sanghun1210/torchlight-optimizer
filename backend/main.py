@@ -1,9 +1,13 @@
 """
 FastAPI 메인 애플리케이션
 """
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.api.routes import heroes, skills, items, talent_nodes, destinies, recommendations
+
+# Load environment variables from .env file
+load_dotenv()
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -27,7 +31,7 @@ app.include_router(skills.router, prefix="/api/skills", tags=["Skills"])
 app.include_router(items.router, prefix="/api/items", tags=["Items"])
 app.include_router(talent_nodes.router, prefix="/api/talent-nodes", tags=["Talent Nodes"])
 app.include_router(destinies.router, prefix="/api/destinies", tags=["Destinies"])
-app.include_router(recommendations.router, prefix="/api/recommend", tags=["Recommendations"])
+app.include_router(recommendations.router, prefix="/api/recommendations", tags=["Recommendations"])
 
 
 @app.get("/")
@@ -43,7 +47,8 @@ async def root():
             "items": "/api/items",
             "talent_nodes": "/api/talent-nodes",
             "destinies": "/api/destinies",
-            "recommendations": "/api/recommend"
+            "recommendations_v2": "/api/recommendations/build/{hero_id}",
+            "recommendations_ai": "/api/recommendations/ai/build/{hero_id}"
         }
     }
 

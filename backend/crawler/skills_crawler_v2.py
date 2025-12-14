@@ -17,14 +17,14 @@ logger = logging.getLogger(__name__)
 class SkillsCrawlerV2(BaseCrawler):
     """스킬 데이터 크롤링 - 개별 페이지 방문"""
 
-    # 스킬 카테고리 URL
+    # 스킬 카테고리 URL (한국어 페이지)
     SKILL_CATEGORIES = {
-        'Active': 'https://tlidb.com/en/Active_Skill',
-        'Support': 'https://tlidb.com/en/Support_Skill',
-        'Passive': 'https://tlidb.com/en/Passive_Skill',
-        'Activation Medium': 'https://tlidb.com/en/Activation_Medium_Skill',
-        'Noble Support': 'https://tlidb.com/en/Noble_Support_Skill',
-        'Magnificent Support': 'https://tlidb.com/en/Magnificent_Support_Skill',
+        'Active': 'https://tlidb.com/ko/Active_Skill',
+        'Support': 'https://tlidb.com/ko/Support_Skill',
+        'Passive': 'https://tlidb.com/ko/Passive_Skill',
+        'Activation Medium': 'https://tlidb.com/ko/Activation_Medium_Skill',
+        'Noble Support': 'https://tlidb.com/ko/Noble_Support_Skill',
+        'Magnificent Support': 'https://tlidb.com/ko/Magnificent_Support_Skill',
     }
 
     def crawl_all_skills(self, detailed: bool = True) -> List[Dict]:
@@ -196,18 +196,64 @@ class SkillsCrawlerV2(BaseCrawler):
                     if time_match:
                         details['cooldown'] = float(time_match.group(1))
 
-            # 설명 추출 (Simple 섹션)
+            # 설명 추출 (전체 스킬 효과 정보 수집)
+            description_parts = []
+
+            # 1. Simple 섹션 찾기
             simple_div = soup.find('div', class_='detailsNote', string=lambda x: x and 'Simple' in str(x))
             if simple_div:
-                # simple_div의 부모의 다음 형제에 설명이 있음
-                # (simple_div는 이미 div.detailsNote이므로, parent가 div.text-center)
                 parent = simple_div.parent
                 if parent:
                     next_elem = parent.find_next_sibling()
                     if next_elem:
-                        desc_text = self.extract_text(next_elem)
-                        if desc_text and len(desc_text) > 10:
-                            details['description'] = desc_text[:500]  # 최대 500자
+                        simple_text = next_elem.get_text(separator="\n", strip=True)
+                        if simple_text and len(simple_text) > 10:
+                            description_parts.append("=== Simple ===")
+                            description_parts.append(simple_text)
+
+            # 2. 다른 섹션들 찾기 (Details, Stats 등)
+            # detailsNote 클래스를 가진 모든 div 탐색
+            detail_notes = soup.find_all('div', class_='detailsNote')
+            for note in detail_notes:
+                note_text = note.get_text(strip=True)
+                # Simple은 이미 처리했으므로 스킵
+                if 'Simple' in note_text:
+                    continue
+
+                # 섹션 헤더로 사용
+                parent = note.parent
+                if parent:
+                    next_elem = parent.find_next_sibling()
+                    if next_elem:
+                        section_text = next_elem.get_text(separator="\n", strip=True)
+                        if section_text and len(section_text) > 10:
+                            description_parts.append(f"=== {note_text} ===")
+                            description_parts.append(section_text)
+
+            # 3. card-header나 h3를 기준으로 추가 섹션 탐색
+            headers = soup.find_all(['h3', 'div'], class_=lambda x: x and 'card-header' in str(x).lower())
+            for header in headers[:3]:  # 최대 3개 섹션만
+                header_text = header.get_text(strip=True)
+                # 스킬 효과 관련 헤더 필터링
+                if any(keyword in header_text.lower() for keyword in ['effect', 'skill', '효과', '수치', 'stat']):
+                    # 헤더 다음에 오는 콘텐츠 추출
+                    content_div = header.find_next_sibling()
+                    if content_div:
+                        content_text = content_div.get_text(separator="\n", strip=True)
+                        if content_text and len(content_text) > 10:
+                            description_parts.append(f"=== {header_text} ===")
+                            description_parts.append(content_text)
+
+            # 4. 모든 파트 결합
+            if description_parts:
+                details['description'] = "\n\n".join(description_parts)
+            else:
+                # fallback: 페이지 전체에서 주요 콘텐츠 영역 찾기
+                main_content = soup.find('div', class_='container')
+                if main_content:
+                    fallback_text = main_content.get_text(separator="\n", strip=True)
+                    # 너무 긴 경우 앞부분만
+                    details['description'] = fallback_text[:2000] if fallback_text else ""
 
         except Exception as e:
             logger.error(f"Error parsing skill details from {skill_url}: {e}")

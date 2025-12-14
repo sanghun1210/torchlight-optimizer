@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
+import api from '../services/api'
 import './HeroSelector.css'
 
-function HeroSelector({ onHeroSelect, onRecommendation, selectedHeroId }) {
+function HeroSelector({ onHeroSelect, onRecommendation, selectedHeroId, onEngineChange }) {
   const [heroes, setHeroes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [recommending, setRecommending] = useState(false)
+  const [useAI, setUseAI] = useState(true) // Default to AI
+  const [playstyle, setPlaystyle] = useState('')
 
   useEffect(() => {
     fetchHeroes()
@@ -15,14 +17,22 @@ function HeroSelector({ onHeroSelect, onRecommendation, selectedHeroId }) {
   const fetchHeroes = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('/api/heroes')
-      setHeroes(response.data)
+      const data = await api.heroes.getAll()
+      setHeroes(data)
       setError(null)
     } catch (err) {
       setError('Failed to load heroes: ' + err.message)
       console.error('Error fetching heroes:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleEngineToggle = () => {
+    const newUseAI = !useAI
+    setUseAI(newUseAI)
+    if (onEngineChange) {
+      onEngineChange(newUseAI ? 'ai' : 'v2')
     }
   }
 
@@ -34,11 +44,26 @@ function HeroSelector({ onHeroSelect, onRecommendation, selectedHeroId }) {
 
     try {
       setRecommending(true)
-      const response = await axios.get(`/api/recommend/build/${selectedHeroId}`)
-      onRecommendation(response.data)
+      let data
+
+      if (useAI) {
+        // Use AI recommendation
+        data = await api.recommendationsAI.getAIBuildRecommendation(
+          selectedHeroId,
+          { playstyle: playstyle || undefined }
+        )
+      } else {
+        // Use rule-based v2 recommendation
+        data = await api.recommendationsV2.getBuildRecommendation(
+          selectedHeroId,
+          { playstyle: playstyle || undefined }
+        )
+      }
+
+      onRecommendation(data)
       setError(null)
     } catch (err) {
-      setError('Failed to get recommendation: ' + err.message)
+      setError(`Failed to get ${useAI ? 'AI' : 'rule-based'} recommendation: ` + err.message)
       console.error('Error getting recommendation:', err)
     } finally {
       setRecommending(false)
@@ -85,13 +110,54 @@ function HeroSelector({ onHeroSelect, onRecommendation, selectedHeroId }) {
 
       {selectedHeroId && (
         <div className="recommend-section">
+          {/* Engine Toggle */}
+          <div className="engine-toggle">
+            <label className="toggle-label">
+              <input
+                type="checkbox"
+                checked={useAI}
+                onChange={handleEngineToggle}
+                className="toggle-input"
+              />
+              <span className="toggle-slider"></span>
+              <span className="toggle-text">
+                {useAI ? '🤖 AI-Powered' : '📊 Rule-Based'}
+              </span>
+            </label>
+          </div>
+
+          {/* Playstyle Input */}
+          <div className="playstyle-input">
+            <label htmlFor="playstyle">
+              Playstyle (optional):
+            </label>
+            <input
+              id="playstyle"
+              type="text"
+              value={playstyle}
+              onChange={(e) => setPlaystyle(e.target.value)}
+              placeholder="e.g., Melee, DoT, Fire"
+              className="playstyle-field"
+            />
+          </div>
+
+          {/* Recommend Button */}
           <button
-            className="recommend-button"
+            className={`recommend-button ${useAI ? 'ai-mode' : 'v2-mode'}`}
             onClick={handleRecommend}
             disabled={recommending}
           >
-            {recommending ? 'Analyzing...' : 'Get Build Recommendation'}
+            {recommending
+              ? (useAI ? '🤖 AI Analyzing...' : '📊 Analyzing...')
+              : (useAI ? '🤖 Get AI Recommendation' : '📊 Get Recommendation')
+            }
           </button>
+
+          {useAI && (
+            <p className="ai-notice">
+              💡 AI recommendations may take 5-10 seconds
+            </p>
+          )}
         </div>
       )}
     </div>

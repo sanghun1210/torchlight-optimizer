@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import HeroSelector from './components/HeroSelector'
 import BuildRecommendation from './components/BuildRecommendation'
+import AIBuildRecommendation from './components/AIBuildRecommendation'
 import './App.css'
 
 function App() {
   const [selectedHeroId, setSelectedHeroId] = useState(null)
   const [recommendation, setRecommendation] = useState(null)
+  const [engineType, setEngineType] = useState('ai') // 'ai' or 'v2'
 
   const handleHeroSelect = (heroId) => {
     setSelectedHeroId(heroId)
@@ -14,6 +16,11 @@ function App() {
 
   const handleRecommendation = (data) => {
     setRecommendation(data)
+  }
+
+  const handleEngineChange = (newEngine) => {
+    setEngineType(newEngine)
+    setRecommendation(null) // Clear recommendation when switching engines
   }
 
   return (
@@ -28,11 +35,18 @@ function App() {
           <HeroSelector
             onHeroSelect={handleHeroSelect}
             onRecommendation={handleRecommendation}
+            onEngineChange={handleEngineChange}
             selectedHeroId={selectedHeroId}
           />
 
           {recommendation && (
-            <BuildRecommendation recommendation={recommendation} />
+            <>
+              {engineType === 'ai' ? (
+                <AIBuildRecommendation recommendation={recommendation} />
+              ) : (
+                <BuildRecommendation recommendation={recommendation} />
+              )}
+            </>
           )}
         </div>
       </div>
